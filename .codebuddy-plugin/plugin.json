@@ -1,20 +1,34 @@
 {
   "name": "label-design-expert",
-  "version": "1.2.1",
-  "description": "A label design and compliance expert that generates orthogonal tag taxonomies with annotation guides, designs product-label layouts with renderable SVG proofs and design tokens, reverse-engineers existing labels into measurable layouts for zero-change redesigns, audits mandatory markings, banned wording, trademark markings and industrial chemical label elements (GHS, SDS), detects definition drift across specs, code and docs, checks copy-to-layout consistency and CJK line-break rules, and returns source-traceable three-state verdicts.",
+  "version": "1.2.2",
+  "description": "A label design and compliance expert that generates orthogonal tag taxonomies with annotation guides, designs product-label layouts with renderable SVG proofs and design tokens, reverse-engineers existing labels into measurable layouts for zero-change redesigns, audits mandatory markings, banned wording, trademark markings and industrial chemical label elements (GHS, SDS), detects definition drift across specs, code and docs, checks copy-to-layout consistency and CJK line-break rules, and returns source-traceable three-state verdicts. It enforces domain separation so a taxonomy-consistency task never borrows product-attribute or banned-word verdicts from the compliance domain, and decouples layout proofs from copy compliance so a missing product attribute blocks only the compliance line, not the design deliverable.",
   "author": {
     "name": "董植深",
     "email": "jason@mimetics.cn"
   },
   "homepage": "https://github.com/mimetics-ai/label-design-expert",
   "license": "MIT",
-  "keywords": ["label", "taxonomy", "tag-governance", "label-compliance", "visual-design", "label-layout", "definition-drift", "chemical-label", "label-redesign", "reverse-engineering"],
-  "agents": ["./agents/label-design-expert.md"],
-  "skills": ["./skills/label-taxonomy-governor", "./skills/label-visual-designer"],
-
+  "keywords": [
+    "label",
+    "taxonomy",
+    "tag-governance",
+    "label-compliance",
+    "visual-design",
+    "label-layout",
+    "definition-drift",
+    "chemical-label",
+    "label-redesign",
+    "reverse-engineering"
+  ],
+  "agents": [
+    "./agents/label-design-expert.md"
+  ],
+  "skills": [
+    "./skills/label-taxonomy-governor",
+    "./skills/label-visual-designer"
+  ],
   "expertType": "agent",
   "agentName": "label-design-expert",
-
   "displayName": {
     "en": "Labelwright",
     "zh": "标尺"
@@ -35,9 +49,18 @@
   },
   "plugin": "label-design-expert",
   "tags": [
-    { "en": "Taxonomy Design", "zh": "标签体系设计" },
-    { "en": "Label Visual Design", "zh": "标签版式设计" },
-    { "en": "Compliance & Drift", "zh": "合规与口径" }
+    {
+      "en": "Taxonomy Design",
+      "zh": "标签体系设计"
+    },
+    {
+      "en": "Label Visual Design",
+      "zh": "标签版式设计"
+    },
+    {
+      "en": "Compliance & Drift",
+      "zh": "合规与口径"
+    }
   ],
   "quickPrompts": [
     {

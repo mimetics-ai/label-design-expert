@@ -23,6 +23,7 @@ CONFIG = json.loads((HERE.parent / "config" / "rules.json").read_text(encoding="
 ALIASES = {normalize_key(k, {}): v for k, v in CONFIG["key_aliases"].items()}
 
 BASE = {
+    "domain": "B",
     "scope": "化妆品",
     "labels": [
         {"id": "integrity-level", "name": "完整性等级", "values": ["Low", "Medium", "High"]},
@@ -85,13 +86,13 @@ mixed = {"labels": [{"id": "stage", "values": ["Low", 2]}], "declarations": []}
 check("10 枚举类型混杂被检出", len(analyze(mixed, CONFIG)["enum_issues"]) == 1)
 
 # 11 分域禁用词命中
-banned = {"scope": "化妆品", "labels": [],
+banned = {"domain": "B", "scope": "化妆品", "labels": [],
           "declarations": [{"file": "label.txt", "key": "copy", "text": "本品可防蚊，纯植物配方"}]}
 rb = analyze(banned, CONFIG)
 check("11 化妆品域命中「防蚊」「纯植物」", len(rb["banned_hits"]) >= 2)
 
 # 12 非适用域的词不误报
-no_false = {"scope": "化妆品", "labels": [],
+no_false = {"domain": "B", "scope": "化妆品", "labels": [],
             "declarations": [{"file": "label.txt", "key": "copy", "text": "含铲除配方说明"}]}
 check("12 农药域「铲除」不在化妆品词表，不误报",
       len(analyze(no_false, CONFIG)["banned_hits"]) == 0)
@@ -101,9 +102,9 @@ all_verdicts = {v["verdict"] for v in r["verdicts"]}
 check("附A 结论只出现三态", all_verdicts <= {PASS, FAIL, REVIEW})
 check("附B 执行声明首行存在", render_markdown(r).startswith("【执行声明】脚本：已运行"))
 check("附C meta.script_ran = True", r["meta"]["script_ran"] is True)
-check("附D 未指定 scope 时标需人工复核",
+check("附D B 域未指定 scope 时属性认定标需人工复核",
       any(v["verdict"] == REVIEW and v["item"] == "属性认定"
-          for v in analyze({"labels": [], "declarations": []}, CONFIG)["verdicts"]))
+          for v in analyze({"domain": "B", "labels": [], "declarations": []}, CONFIG)["verdicts"]))
 
 # v1.1.0 · 覆盖度与设计能力断言
 EXAMPLE = json.loads((HERE.parent / "examples" / "taxonomy-design-example.json").read_text(encoding="utf-8"))
@@ -125,7 +126,7 @@ check("附J 覆盖度结论只出现三态",
 check("附K 中文口径键不再被归一成空串",
       normalize_key("产品数量", ALIASES) == "产品数量"
       and normalize_key("产品数量", ALIASES) != normalize_key("供应商地址", ALIASES))
-chinese = {"scope": "化妆品", "labels": [],
+chinese = {"domain": "B", "scope": "化妆品", "labels": [],
            "declarations": [
                {"file": "a.md", "key": "产品数量", "value": "66"},
                {"file": "b.md", "key": "产品数量", "value": "66"},
@@ -134,7 +135,7 @@ chinese = {"scope": "化妆品", "labels": [],
 rcn = analyze(chinese, CONFIG)
 check("附L 中文 key 正确分组且不误报冲突",
       rcn["meta"]["normalized_keys"] == 2 and len(rcn["conflicts"]) == 0)
-fmt = {"scope": "化妆品", "labels": [],
+fmt = {"domain": "B", "scope": "化妆品", "labels": [],
        "declarations": [
            {"file": "a.py", "key": "resinBackLabelSize", "value": "210x194mm"},
            {"file": "b.md", "key": "resinBackLabelSize", "value": "210×194 mm"},
@@ -143,7 +144,7 @@ rf = analyze(fmt, CONFIG)
 check("附M 仅书写格式差异判需人工复核、不发明第五类",
       len(rf["format_only"]) == 1 and len(rf["conflicts"]) == 0
       and any(v["verdict"] == REVIEW and "书写格式" in v["detail"] for v in rf["verdicts"]))
-real_drift = {"scope": "化妆品", "labels": [],
+real_drift = {"domain": "B", "scope": "化妆品", "labels": [],
               "declarations": [
                   {"file": "a.md", "key": "productCount", "value": "66"},
                   {"file": "b.md", "key": "productCount", "value": "65"},
@@ -156,6 +157,23 @@ check("附O 格式归一函数只归一书写、不吞数值",
 check("附P 报告列出归一后键组数与格式差异明细",
       "归一后口径键 2 组" in render_markdown(rcn)
       and "仅书写格式差异" in render_markdown(rf))
+
+# v1.2.2 · 2026-11-20 线上 7 条实测回灌：A/B 域隔离，禁止臆造属性认定
+a_mix = {"scope": "工业化学品", "labels": [],
+         "declarations": [{"file": "spec.md", "key": "size", "value": "210×194 mm"}]}
+ra = analyze(a_mix, CONFIG)
+md_a = render_markdown(ra)
+check("附Q A 域忽略输入 scope、不输出禁用词判定",
+      ra["meta"]["domain"] == "A" and ra["meta"]["scope_ignored"] is True
+      and ra["meta"]["scope"] == "未指定"
+      and not any("分域禁用词" in v["item"] for v in ra["verdicts"]))
+check("附R A 域报告显式写出域隔离与 scope 已忽略",
+      "任务域：A" in md_a and "已忽略" in md_a and "工业化学品" in md_a)
+check("附S A 域仍给需人工复核的域隔离项、不发明第四态",
+      any(v["item"] == "域隔离" and v["verdict"] == REVIEW for v in ra["verdicts"])
+      and {v["verdict"] for v in ra["verdicts"]} <= {PASS, FAIL, REVIEW})
+check("附T 显式 B 域仍正常跑禁用词（不因隔离失效）",
+      any("分域禁用词" in v["item"] for v in rb["verdicts"]))
 
 passed = sum(1 for _, ok, _ in results if ok)
 print("标尺 · 标签治理器自检 v%s" % VERSION)

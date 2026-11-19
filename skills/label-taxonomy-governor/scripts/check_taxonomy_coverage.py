@@ -15,7 +15,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 DEFAULTS = {
     "min_coverage": 0.95,

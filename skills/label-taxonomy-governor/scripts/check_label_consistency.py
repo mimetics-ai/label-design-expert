@@ -11,6 +11,13 @@ v1.2.0（2026-11-19 桌面标签实测回灌）：
   - 新增「仅书写格式不同」识别：全角/空格/乘号差异不属四类漂移，
     标「需人工复核」，不临场发明第五类。
 
+v1.2.2（2026-11-20 线上 7 条实测回灌）：
+  - 域隔离：A 域口径治理不再采信输入里的 scope、也不输出 B 域「属性认定」/
+    「分域禁用词」判定。线上第 1 条实测曾出现模型臆造「工业化学品」并生成
+    「禁用词通过」的假合规结论，违反「先分流、判据不混用」「占位≠已具备」。
+  - domain 字段：默认 A；仅显式 domain="B" 且给了 scope 时才跑分域禁用词。
+    A 域输入若携带 scope，原样回显在 meta.scope_in_input，但不采信、不据此判定。
+
 用法：
   python check_label_consistency.py --input declarations.json \
       --config config/rules.json --output-md report.md --output-json report.json
@@ -22,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 DEFAULT_DRIFTS = ["值漂移", "名漂移", "范围漂移", "版本陈旧"]
 
@@ -56,7 +63,13 @@ def normalize_value(value):
 def analyze(data, config):
     labels = data.get("labels") or []
     decls = data.get("declarations") or []
-    scope = data.get("scope") or ""
+    # v1.2.2 域隔离：默认 A 域。只有显式 domain=="B" 才做 B 域属性认定/禁用词。
+    # A 域输入里携带的 scope 一律不采信，仅原样回显供人工核对。
+    domain = str(data.get("domain") or "A").strip().upper()
+    is_b = domain == "B"
+    scope_in_input = data.get("scope") or ""
+    # A 域不采信 scope：仅 B 域把它当作有效属性认定参与禁用词判定。
+    scope = (scope_in_input if is_b else "")
 
     naming = config.get("naming") or {}
     pattern = re.compile(naming.get("pattern", r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"))
@@ -149,11 +162,19 @@ def analyze(data, config):
             "drift_type": drift_types[0],
         })
 
-    # 3) 分域禁用词
-    if not scope:
+    # 3) 分域禁用词（v1.2.2：仅 B 域执行；A 域不做属性认定、不出合规结论）
+    if not is_b:
+        verdicts.append({
+            "item": "域隔离", "verdict": REVIEW,
+            "basis": "依据：SKILL.md 工作流程第 1 条（先分流）",
+            "detail": "本任务为 A 域口径治理，不采信属性认定、不执行 B 域分域禁用词判定"
+                      + ("；输入携带 scope=「%s」已忽略，须另行分流后认定" % scope_in_input
+                         if scope_in_input else ""),
+        })
+    elif not scope:
         verdicts.append({"item": "属性认定", "verdict": REVIEW,
                          "basis": "依据：domain-b-label-compliance.md 第一节",
-                         "detail": "未提供 scope，未做分域禁用词检查；须先做产品属性认定"})
+                         "detail": "B 域未提供 scope，未做分域禁用词检查；须先做产品属性认定"})
     else:
         for d in decls:
             text = " ".join(str(d.get(f, "")) for f in ("key", "value", "text") if d.get(f) is not None)
@@ -180,7 +201,10 @@ def analyze(data, config):
         "meta": {
             "version": VERSION,
             "script_ran": True,
+            "domain": domain,
             "scope": scope or "未指定",
+            "scope_in_input": scope_in_input,
+            "scope_ignored": bool(scope_in_input and not is_b),
             "total_labels": len(labels),
             "total_declarations": len(decls),
             "normalized_keys": len(groups),
@@ -215,7 +239,11 @@ def render_markdown(report):
         "",
         "# 标签口径一致性报告（脚本部分）",
         "",
-        "- 版本：%s ｜ 属性认定：%s" % (m["version"], m["scope"]),
+        "- 版本：%s ｜ 任务域：%s" % (m["version"], m["domain"]),
+        "- 属性认定：%s%s" % (
+            m["scope"],
+            "（输入携带 scope=「%s」已忽略，A 域不采信）" % m["scope_in_input"]
+            if m.get("scope_ignored") else ""),
         "- 标签 %d 个 ｜ 口径声明 %d 条 ｜ 归一后口径键 %d 组 ｜ 仅格式差异 %d 组"
         % (m["total_labels"], m["total_declarations"], m["normalized_keys"], s["format_only"]),
         "- 结论：通过 %d ｜ 不通过 %d ｜ 需人工复核 %d" % (s["pass"], s["fail"], s["review"]),

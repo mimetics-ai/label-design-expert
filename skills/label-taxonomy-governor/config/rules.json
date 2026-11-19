@@ -1,5 +1,5 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "note": "规则可配置。项目专有名词请放进 key_aliases，不要写进脚本。分域禁用词按属性认定结果选用，禁止一把梭。工业化学品域无专用禁用词表，脚本只启用通用词表；化学品强制标注的核查走 references/domain-b-chemical-label.md 并标『依据：待核实』。",
   "naming": {
     "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",

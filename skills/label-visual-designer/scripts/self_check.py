@@ -139,7 +139,7 @@ check("23 K 值越界判不通过、未提供判需人工复核",
               for v in variant(lambda d: d["print"].pop("black_text_k", None))["verdicts"]))
 
 passed = sum(1 for _, ok, _ in results if ok)
-print("标尺 · 标签视觉设计器自检 v1.2.1")
+print("标尺 · 标签视觉设计器自检 v1.2.2")
 print("-" * 50)
 for name, ok, extra in results:
     print("%s %s%s" % ("✅" if ok else "❌", name, ("｜" + extra) if extra else ""))

@@ -21,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 
 # 中文排版禁则：行首不得出现收束标点，行尾不得出现开启标点/引号。
