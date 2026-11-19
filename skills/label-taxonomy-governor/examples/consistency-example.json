@@ -1,0 +1,53 @@
+{
+  "note": "演示用占位数据，不是真实项目口径。刻意包含三组情形：中文口径键、仅书写格式差异、真实值漂移。运行 check_label_consistency.py 时应得到 conflicts=1 / format_only=1。",
+  "scope": "工业化学品",
+  "labels": [
+    {
+      "id": "integrity-level",
+      "name": "完整性等级",
+      "values": ["Low", "Medium", "High"]
+    },
+    {
+      "id": "finished-size",
+      "name": "成品尺寸",
+      "values": ["210×194 mm", "210x194mm"]
+    }
+  ],
+  "declarations": [
+    {
+      "file": "设计规格.md",
+      "key": "成品尺寸",
+      "value": "210×194 mm"
+    },
+    {
+      "file": "layout.json",
+      "key": "成品尺寸",
+      "value": "210x194mm"
+    },
+    {
+      "file": "H100Z-清单.csv",
+      "key": "产品数量",
+      "value": "12"
+    },
+    {
+      "file": "H100Z-清单-副本.csv",
+      "key": "产品数量",
+      "value": "12"
+    },
+    {
+      "file": "gate-manifest.json",
+      "key": "env.expectedIntegrity",
+      "value": "Medium"
+    },
+    {
+      "file": "label-guard.mjs",
+      "key": "EXPECTED_INTEGRITY",
+      "value": "Medium"
+    },
+    {
+      "file": "M2-plan.md",
+      "key": "expectedIntegrity",
+      "value": "Low"
+    }
+  ]
+}

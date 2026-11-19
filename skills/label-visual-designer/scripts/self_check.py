@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""标签视觉设计技能 · 14 条冒烟断言。运行：python self_check.py"""
+"""标签视觉设计技能 · 冒烟断言。运行：python self_check.py
+
+覆盖：对比度、字号、安全边距、商标、二维码、印刷参数、SVG 渲染、设计令牌、
+v1.2 新增的文案—版面一致性、中文断行禁则、占位声明与三态封闭。
+"""
 import copy
 import json
 import sys
 from pathlib import Path
 
 from check_visual_spec import analyze, contrast_ratio, PASS, FAIL, REVIEW
-from render_label_proof import render_svg, build_tokens
+from render_label_proof import render_svg, build_tokens, wrap_cjk
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -85,8 +89,51 @@ check("14 设计令牌可序列化且结论封闭三态",
       "--label-width" in tokens and json.loads(json.dumps(tokens))["--bleed"] == "3mm"
       and {v["verdict"] for v in r["verdicts"]} <= {PASS, FAIL, REVIEW})
 
+# ---- v1.2.0 · 2026-11-19 桌面标签实测回灌断言 ----
+w1 = wrap_cjk("预防措施远离热源。禁止吸烟", 8)
+check("15 中文断行不产生孤行句号（句号并入上一行）",
+      "预防措施远离热源。" in w1
+      and not any(ln.lstrip().startswith("。") for ln in w1))
+w2 = wrap_cjk("适用范围（工业用）说明", 5)
+check("16 行尾开括号不留孤悬",
+      not any(ln.rstrip().endswith("（") for ln in w2))
+
+d_noqr = copy.deepcopy(BASE)
+d_noqr["copy_references"] = ["qrcode"]
+d_noqr["regions"] = [x for x in d_noqr["regions"] if x["type"] != "qrcode"]
+check("17 文案写「扫码获取」但版面无二维码被拦",
+      has_fail(analyze(d_noqr, CONFIG), "文案—版面一致性"))
+
+d_withqr = copy.deepcopy(BASE)
+d_withqr["copy_references"] = ["qrcode"]
+check("18 文案声明与版面二维码一致时通过",
+      any(v["verdict"] == PASS and "文案—版面一致性" in v["item"]
+          for v in analyze(d_withqr, CONFIG)["verdicts"]))
+
+d_badwrap = copy.deepcopy(BASE)
+d_badwrap["regions"][0]["wrapped_lines"] = ["预防措施文本", "。禁止吸烟"]
+check("19 行首标点被中文禁则拦下",
+      has_fail(analyze(d_badwrap, CONFIG), "中文断行禁则"))
+
+d_goodwrap = copy.deepcopy(BASE)
+d_goodwrap["regions"][0]["wrapped_lines"] = ["预防措施文本。", "禁止吸烟"]
+check("20 合法断行通过中文禁则",
+      any(v["verdict"] == PASS and "中文断行禁则" in v["item"]
+          for v in analyze(d_goodwrap, CONFIG)["verdicts"]))
+
+d_ph = copy.deepcopy(BASE)
+for x in d_ph["regions"]:
+    if x["type"] == "qrcode":
+        x["placeholder"] = True
+check("21 占位区块标需人工复核且不计为已具备",
+      any(v["verdict"] == REVIEW and "占位区块声明" in v["item"]
+          for v in analyze(d_ph, CONFIG)["verdicts"]))
+
+check("22 新增结论仍封闭三态",
+      {v["verdict"] for v in analyze(d_noqr, CONFIG)["verdicts"]} <= {PASS, FAIL, REVIEW})
+
 passed = sum(1 for _, ok, _ in results if ok)
-print("标尺 · 标签视觉设计器自检 v1.1.0")
+print("标尺 · 标签视觉设计器自检 v1.2.0")
 print("-" * 50)
 for name, ok, extra in results:
     print("%s %s%s" % ("✅" if ok else "❌", name, ("｜" + extra) if extra else ""))

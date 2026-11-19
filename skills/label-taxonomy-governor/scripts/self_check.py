@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""12 条冒烟断言。运行：python self_check.py
+"""冒烟断言。运行：python self_check.py
 
-断言覆盖：口径键归一化、值漂移检出、命名正则、保留词、长度、枚举重复／类型混杂、
-分域禁用词命中与不误报、三态封闭、执行声明、报告渲染。
+断言覆盖：口径键归一化（含中文键）、值漂移检出、书写格式差异识别、
+命名正则、保留词、长度、枚举重复／类型混杂、分域禁用词命中与不误报、
+三态封闭、执行声明、报告渲染、覆盖度与设计能力指标。
 """
 import json
 import sys
 from pathlib import Path
 
-from check_label_consistency import analyze, normalize_key, render_markdown, VERSION, PASS, FAIL, REVIEW
+from check_label_consistency import (analyze, normalize_key, normalize_value,
+                                     render_markdown, VERSION, PASS, FAIL, REVIEW)
 from check_taxonomy_coverage import analyze as analyze_coverage
 from check_taxonomy_coverage import render_markdown as render_coverage_markdown
 
@@ -118,6 +120,42 @@ check("附I 覆盖度报告首行有执行声明",
       render_coverage_markdown(rc).startswith("【执行声明】脚本：已运行"))
 check("附J 覆盖度结论只出现三态",
       {v["verdict"] for v in rc["verdicts"]} <= {PASS, FAIL, REVIEW})
+
+# v1.2.0 · 2026-11-19 桌面标签实测回灌断言
+check("附K 中文口径键不再被归一成空串",
+      normalize_key("产品数量", ALIASES) == "产品数量"
+      and normalize_key("产品数量", ALIASES) != normalize_key("供应商地址", ALIASES))
+chinese = {"scope": "化妆品", "labels": [],
+           "declarations": [
+               {"file": "a.md", "key": "产品数量", "value": "66"},
+               {"file": "b.md", "key": "产品数量", "value": "66"},
+               {"file": "c.md", "key": "供应商地址", "value": "广州"},
+           ]}
+rcn = analyze(chinese, CONFIG)
+check("附L 中文 key 正确分组且不误报冲突",
+      rcn["meta"]["normalized_keys"] == 2 and len(rcn["conflicts"]) == 0)
+fmt = {"scope": "化妆品", "labels": [],
+       "declarations": [
+           {"file": "a.py", "key": "resinBackLabelSize", "value": "210x194mm"},
+           {"file": "b.md", "key": "resinBackLabelSize", "value": "210×194 mm"},
+       ]}
+rf = analyze(fmt, CONFIG)
+check("附M 仅书写格式差异判需人工复核、不发明第五类",
+      len(rf["format_only"]) == 1 and len(rf["conflicts"]) == 0
+      and any(v["verdict"] == REVIEW and "书写格式" in v["detail"] for v in rf["verdicts"]))
+real_drift = {"scope": "化妆品", "labels": [],
+              "declarations": [
+                  {"file": "a.md", "key": "productCount", "value": "66"},
+                  {"file": "b.md", "key": "productCount", "value": "65"},
+              ]}
+check("附N 真实值漂移仍判不通过",
+      len(analyze(real_drift, CONFIG)["conflicts"]) == 1)
+check("附O 格式归一函数只归一书写、不吞数值",
+      normalize_value("210×194 mm") == normalize_value("210x194mm")
+      and normalize_value("66") != normalize_value("65"))
+check("附P 报告列出归一后键组数与格式差异明细",
+      "归一后口径键 2 组" in render_markdown(rcn)
+      and "仅书写格式差异" in render_markdown(rf))
 
 passed = sum(1 for _, ok, _ in results if ok)
 print("标尺 · 标签治理器自检 v%s" % VERSION)

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""标签样张渲染器（v1.1.0 新增）。
+"""标签样张渲染器。
 
 把视觉规格 JSON 渲染成 SVG 设计稿，并输出 CSS/JSON 设计令牌与可选 HTML 预览页。
 样张是设计稿不是印稿：文案为占位符，不得直接下厂。
+
+v1.2.0（2026-11-19 桌面标签实测回灌）新增 wrap_cjk()：
+中文断行禁则——行首收束标点并入上一行、行尾开启标点移到下一行。
+实测断行结果可经 wrapped_lines 回灌，由 check_visual_spec.py 复验。
+等宽估算不替代字体测量，真实排版须以印厂/设计脚本实测为准。
 
 用法：
   python render_label_proof.py --input label-proof-input.json \
@@ -16,7 +21,47 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
+
+FORBIDDEN_LINE_HEAD = "。，、；：！？）】》」』”’%‰℃"
+FORBIDDEN_LINE_TAIL = "（【《「『“‘"
+
+
+def wrap_cjk(text, max_chars):
+    """按最大字符数断行，并应用中文禁则。
+
+    实测来源：H100Z 背标真实改版时，逐字断行把句号「。」单独甩到一行；
+    加入禁则后四段行数 8→7，底部安全余量同时改善。
+    """
+    s = str(text)
+    if max_chars < 1:
+        return [s] if s else []
+    lines, cur = [], ""
+    for ch in s:
+        if ch == "\n":
+            if cur:
+                lines.append(cur)
+            cur = ""
+            continue
+        if len(cur) >= max_chars:
+            if ch in FORBIDDEN_LINE_HEAD:
+                cur += ch
+                lines.append(cur)
+                cur = ""
+                continue
+            if cur and cur[-1] in FORBIDDEN_LINE_TAIL:
+                tail = cur[-1]
+                cur = cur[:-1]
+                lines.append(cur)
+                cur = tail + ch
+                continue
+            lines.append(cur)
+            cur = ch
+        else:
+            cur += ch
+    if cur:
+        lines.append(cur)
+    return lines
 
 
 def render_svg(data, annotate=False):
@@ -71,10 +116,15 @@ def render_svg(data, annotate=False):
                                    (x + j * cell, y + i * cell, cell, cell, fg))
         else:
             font = float(r.get("font_mm", 2.5))
-            text = html.escape(str(r.get("text", "")), quote=False)
-            out.append('<text x="%g" y="%g" font-size="%g" fill="%s" '
-                       'font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif">%s</text>' %
-                       (x + 0.8, y + font + 0.6, font, fg, text))
+            raw = str(r.get("text", ""))
+            supplied = r.get("wrapped_lines")
+            lines = supplied if isinstance(supplied, list) and supplied else \
+                wrap_cjk(raw, max(1, int(w / max(font * 0.95, 0.1))))
+            for li, ln in enumerate(lines):
+                out.append('<text x="%g" y="%g" font-size="%g" fill="%s" '
+                           'font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif">%s</text>' %
+                           (x + 0.8, y + font + 0.6 + li * font * 1.25, font, fg,
+                            html.escape(str(ln), quote=False)))
         if annotate:
             out.append('<rect x="%g" y="%g" width="%g" height="2.6" fill="#2563EB" '
                        'opacity="0.9"/>' % (x, y - 2.6, max(w * 0.55, 18)))

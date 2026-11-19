@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "note": "默认值为通用起点，不是法规。用户给了印厂规范时以印厂规范为准，并在报告里标注采用了默认值/客户规范。",
+  "version": "1.2.0",
+  "note": "默认值为通用起点，不是法规。用户给了印厂规范时以印厂规范为准，并在报告里标注采用了默认值/客户规范。v1.2 新增文案—版面一致性、中文断行禁则与占位声明的判据参数。",
   "units": "mm",
   "page": {
     "bleed_mm": 3.0,
@@ -26,10 +26,18 @@
     "large_text_font_mm": 4.0,
     "bilingual_secondary_ratio": 0.7
   },
+  "typography": {
+    "forbidden_line_head": "。，、；：！？）】》」』”’%‰℃",
+    "forbidden_line_tail": "（【《「『“‘",
+    "cjk_wrap_char_ratio": 0.95,
+    "note": "中文断行禁则。2026-11-19 H100Z 背标实测：句号被单独甩到一行，加禁则后行数 8→7。"
+  },
   "trademark": {
     "max_area_ratio": 0.1111,
     "corners_only": true,
-    "corner_zone_mm": 20
+    "corner_zone_mm": 20,
+    "source_domain": "卫生用农药标签项目",
+    "applicability_note": "该规则来自卫生用农药标签项目；用于工业化学品等其他域时须先复核适用性，不自动判不通过。"
   },
   "codes": {
     "qr_min_side_mm": 15.0,

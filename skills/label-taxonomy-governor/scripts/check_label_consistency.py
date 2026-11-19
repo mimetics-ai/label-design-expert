@@ -6,6 +6,11 @@
 不判定语义是否等价、不判定整句是否构成违规宣称、不查法规现行效力。
 判定由模型按 references/ 规则包完成，拍板由用户完成。
 
+v1.2.0（2026-11-19 桌面标签实测回灌）：
+  - normalize_key 保留 Unicode 字母/数字，中文口径键不再被剥成空串；
+  - 新增「仅书写格式不同」识别：全角/空格/乘号差异不属四类漂移，
+    标「需人工复核」，不临场发明第五类。
+
 用法：
   python check_label_consistency.py --input declarations.json \
       --config config/rules.json --output-md report.md --output-json report.json
@@ -14,18 +19,38 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 DEFAULT_DRIFTS = ["值漂移", "名漂移", "范围漂移", "版本陈旧"]
 
 
 def normalize_key(raw, aliases):
-    """把 env.expectedIntegrity 与 EXPECTED_INTEGRITY 归一到同一口径键。"""
+    """把 env.expectedIntegrity 与 EXPECTED_INTEGRITY 归一到同一口径键。
+
+    v1.2：旧版 `[^a-z0-9]+` 会把纯中文 key 剥成空串，导致所有中文口径声明
+    被错误归进同一组（2026-11-19 桌面 13 款标签实测发现）。现保留 Unicode
+    字母与数字；NFKC 顺带处理全角字符。
+    """
     key = str(raw).replace("\\", "/").split("/")[-1].split(".")[-1]
-    key = re.sub(r"[^a-z0-9]+", "", key.lower())
+    key = unicodedata.normalize("NFKC", key).lower()
+    key = re.sub(r"[^\w]+", "", key, flags=re.UNICODE).replace("_", "")
     return aliases.get(key, key)
+
+
+def normalize_value(value):
+    """只做书写格式归一，绝不合并语义不同的取值。
+
+    NFKC（全角→半角）＋ 去空白 ＋ 乘号/星号→x。用于识别
+    「210x194mm」与「210×194 mm」这类书写差异；归一后仍不同才是值漂移。
+    """
+    if not isinstance(value, str):
+        return value
+    s = unicodedata.normalize("NFKC", value).strip().lower()
+    s = re.sub(r"[\s\u00a0]+", "", s)
+    return s.replace("×", "x").replace("✕", "x").replace("*", "x")
 
 
 def analyze(data, config):
@@ -46,6 +71,7 @@ def analyze(data, config):
     active_words += [w for w in (word_map.get("通用") or []) if w not in active_words]
 
     naming_violations, enum_issues, conflicts, banned_hits, verdicts = [], [], [], [], []
+    format_only = []
 
     # 1) 标签命名与取值枚举
     for lab in labels:
@@ -95,20 +121,33 @@ def analyze(data, config):
         for it in items:
             sk = json.dumps(it.get("value"), ensure_ascii=False, sort_keys=True)
             by_value.setdefault(sk, []).append(it)
-        if len(by_value) > 1:
-            conflicts.append({
-                "normalized_key": key,
-                "drift_type": drift_types[0],
-                "priority": priority.index(drift_types[0]) if drift_types[0] in priority else 99,
-                "values": [{"value": json.loads(v), "files": [i.get("file", "") for i in its]}
-                           for v, its in by_value.items()],
-            })
+        if len(by_value) <= 1:
+            continue
+        # v1.2：先排除「仅书写格式不同」。归一后仍不同才按值漂移判不通过。
+        normalized = {normalize_value(json.loads(v)) for v in by_value}
+        if len(normalized) == 1:
+            format_only.append({"normalized_key": key,
+                                "values": [json.loads(v) for v in by_value]})
             verdicts.append({
-                "item": "口径键 %s" % key, "verdict": FAIL,
-                "basis": "依据：domain-a-taxonomy-rules.md 第四节（值漂移）",
-                "detail": "同一口径键出现 %d 个不同取值，须回到单一事实源定值" % len(by_value),
-                "drift_type": drift_types[0],
+                "item": "口径键 %s" % key, "verdict": REVIEW,
+                "basis": "依据：verdict-taxonomy.md 第八节（冲突不属四类）",
+                "detail": "多个取值仅书写格式不同（全角／空格／乘号），不属四类漂移；"
+                          "须人工统一写法并指定单一事实源，不临场发明第五类",
             })
+            continue
+        conflicts.append({
+            "normalized_key": key,
+            "drift_type": drift_types[0],
+            "priority": priority.index(drift_types[0]) if drift_types[0] in priority else 99,
+            "values": [{"value": json.loads(v), "files": [i.get("file", "") for i in its]}
+                       for v, its in by_value.items()],
+        })
+        verdicts.append({
+            "item": "口径键 %s" % key, "verdict": FAIL,
+            "basis": "依据：domain-a-taxonomy-rules.md 第四节（值漂移）",
+            "detail": "同一口径键出现 %d 个不同取值，须回到单一事实源定值" % len(by_value),
+            "drift_type": drift_types[0],
+        })
 
     # 3) 分域禁用词
     if not scope:
@@ -144,11 +183,13 @@ def analyze(data, config):
             "scope": scope or "未指定",
             "total_labels": len(labels),
             "total_declarations": len(decls),
+            "normalized_keys": len(groups),
             "checked_items": checked_items,
             "rules_note": "规则来自 config/rules.json；脚本只查结构与一致性，不判定合法合规。",
         },
         "summary": {
             "conflicts": len(conflicts),
+            "format_only": len(format_only),
             "naming_violations": len(naming_violations),
             "enum_issues": len(enum_issues),
             "banned_hits": len(banned_hits),
@@ -157,6 +198,7 @@ def analyze(data, config):
             "review": sum(1 for v in verdicts if v["verdict"] == REVIEW),
         },
         "conflicts": conflicts,
+        "format_only": format_only,
         "naming_violations": naming_violations,
         "enum_issues": enum_issues,
         "banned_hits": banned_hits,
@@ -174,9 +216,8 @@ def render_markdown(report):
         "# 标签口径一致性报告（脚本部分）",
         "",
         "- 版本：%s ｜ 属性认定：%s" % (m["version"], m["scope"]),
-        "- 标签 %d 个 ｜ 口径声明 %d 条 ｜ 归一后口径键 %d 组"
-        % (m["total_labels"], m["total_declarations"],
-           len({c["normalized_key"] for c in report["conflicts"]}) + 0),
+        "- 标签 %d 个 ｜ 口径声明 %d 条 ｜ 归一后口径键 %d 组 ｜ 仅格式差异 %d 组"
+        % (m["total_labels"], m["total_declarations"], m["normalized_keys"], s["format_only"]),
         "- 结论：通过 %d ｜ 不通过 %d ｜ 需人工复核 %d" % (s["pass"], s["fail"], s["review"]),
         "",
         "> %s" % m["rules_note"],
@@ -196,6 +237,13 @@ def render_markdown(report):
                 lines.append("| %s | %s | %s | %s |" %
                              (c["normalized_key"], c["drift_type"],
                               str(v["value"]).replace("|", "\\|"), ", ".join(v["files"])))
+    if report["format_only"]:
+        lines += ["", "## 仅书写格式差异（不属四类漂移，需人工统一写法）", "",
+                  "| 口径键 | 取值 |", "|---|---|"]
+        for c in report["format_only"]:
+            lines.append("| %s | %s |" %
+                         (c["normalized_key"], " ／ ".join(str(v).replace("|", "\\|")
+                                                          for v in c["values"])))
     if report["banned_hits"]:
         lines += ["", "## 分域禁用词命中", "", "| 文件 | 词 | 适用域 | 上下文 |", "|---|---|---|---|"]
         for h in report["banned_hits"]:
@@ -205,8 +253,9 @@ def render_markdown(report):
         "",
         "## 脚本边界（须如实转述）",
         "",
-        "- 能做：命名正则、枚举重复性／类型一致性、同口径键取值冲突、分域禁用词命中。",
-        "- 不能做：语义是否等价、整句是否构成违规宣称、法规现行效力、哪个口径是权威。",
+        "- 能做：命名正则、枚举重复性／类型一致性、同口径键取值冲突、书写格式差异识别、分域禁用词命中。",
+        "- 不能做：语义是否等价、整句是否构成违规宣称、法规现行效力、哪个口径是权威、待办句是不是口径值。",
+        "- 中文口径键与英文口径键按各自字符归一；不同语言的同义键须写进 `key_aliases`，脚本不猜。",
         "- 定性由模型按 `references/` 规则包完成；删改与放行由用户拍板。",
         "",
     ]
