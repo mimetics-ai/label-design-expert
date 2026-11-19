@@ -1,0 +1,56 @@
+{
+  "name": "label-design-expert",
+  "version": "1.0.0",
+  "description": "A label design and governance expert that builds orthogonal tag taxonomies, audits mandatory markings and banned wording on physical product labels, and detects definition drift across specs, code and docs, returning source-traceable three-state verdicts.",
+  "author": {
+    "name": "董植深",
+    "email": "jason@mimetics.cn"
+  },
+  "homepage": "https://github.com/mimetics-ai/label-design-expert",
+  "license": "MIT",
+  "keywords": ["label", "taxonomy", "tag-governance", "compliance", "definition-drift"],
+  "agents": ["./agents/label-design-expert.md"],
+  "skills": ["./skills/label-taxonomy-governor"],
+
+  "expertType": "agent",
+  "agentName": "label-design-expert",
+
+  "displayName": {
+    "en": "Labelwright",
+    "zh": "标尺"
+  },
+  "profession": {
+    "en": "Taxonomy & Label Compliance Architect",
+    "zh": "标签体系设计与合规审查师"
+  },
+  "displayDescription": {
+    "en": "Designs tag taxonomies and product-label copy, checks dimension naming and definition consistency, audits mandatory markings and banned wording, and returns a source-backed three-state verdict for every item. Never legal advice.",
+    "zh": "设计数据标签体系与商品标签，核对维度命名与口径一致性，审查强制标注与禁用词，逐项给依据与三态结论。"
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "01-ProductDesign",
+  "defaultInitPrompt": {
+    "en": "Design a label taxonomy for this content set — start with how to split the dimensions and how to name them.",
+    "zh": "帮我给这批内容设计一套标签体系，先说维度怎么切、命名怎么定。"
+  },
+  "plugin": "label-design-expert",
+  "tags": [
+    { "en": "Taxonomy Design", "zh": "标签体系设计" },
+    { "en": "Label Compliance", "zh": "标签合规审查" },
+    { "en": "Definition Drift", "zh": "口径一致性" }
+  ],
+  "quickPrompts": [
+    {
+      "en": "Design a label taxonomy for this content set — start with how to split the dimensions and how to name them.",
+      "zh": "帮我给这批内容设计一套标签体系，先说维度怎么切、命名怎么定。"
+    },
+    {
+      "en": "Check this product label copy for mandatory markings and banned wording, with a source for every item.",
+      "zh": "这份产品标签文案帮我逐项查强制标注和禁用词，每条标明依据。"
+    },
+    {
+      "en": "This label disagrees across the spec, the code and the docs — locate the definition drift.",
+      "zh": "同一个标签在规格表、代码和文档里口径对不上，帮我定位漂移点。"
+    }
+  ]
+}

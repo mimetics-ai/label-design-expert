@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""标签口径一致性校验器。
+
+只查结构与一致性：命名正则、枚举完整性、跨文件口径取值冲突、分域禁用词命中。
+不判定语义是否等价、不判定整句是否构成违规宣称、不查法规现行效力。
+判定由模型按 references/ 规则包完成，拍板由用户完成。
+
+用法：
+  python check_label_consistency.py --input declarations.json \
+      --config config/rules.json --output-md report.md --output-json report.json
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+VERSION = "1.0.0"
+PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
+DEFAULT_DRIFTS = ["值漂移", "名漂移", "范围漂移", "版本陈旧"]
+
+
+def normalize_key(raw, aliases):
+    """把 env.expectedIntegrity 与 EXPECTED_INTEGRITY 归一到同一口径键。"""
+    key = str(raw).replace("\\", "/").split("/")[-1].split(".")[-1]
+    key = re.sub(r"[^a-z0-9]+", "", key.lower())
+    return aliases.get(key, key)
+
+
+def analyze(data, config):
+    labels = data.get("labels") or []
+    decls = data.get("declarations") or []
+    scope = data.get("scope") or ""
+
+    naming = config.get("naming") or {}
+    pattern = re.compile(naming.get("pattern", r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"))
+    max_len = int(naming.get("max_length", 40))
+    reserved = set(naming.get("reserved_words") or [])
+    aliases = {normalize_key(k, {}): v for k, v in (config.get("key_aliases") or {}).items()}
+    word_map = config.get("banned_label_words_scope") or {}
+    drift_types = config.get("drift_types") or DEFAULT_DRIFTS
+    priority = config.get("drift_priority") or drift_types
+
+    active_words = list(word_map.get(scope) or [])
+    active_words += [w for w in (word_map.get("通用") or []) if w not in active_words]
+
+    naming_violations, enum_issues, conflicts, banned_hits, verdicts = [], [], [], [], []
+
+    # 1) 标签命名与取值枚举
+    for lab in labels:
+        lid = str(lab.get("id", ""))
+        reasons = []
+        if not lid or not pattern.match(lid):
+            reasons.append("ID 不符合命名正则")
+        if len(lid) > max_len:
+            reasons.append("ID 超过最大长度 %d" % max_len)
+        for part in lid.split("-"):
+            if part.lower() in reserved:
+                reasons.append("命中保留词 '%s'" % part)
+        if reasons:
+            naming_violations.append({"id": lid, "reasons": reasons})
+            verdicts.append({"item": "标签 ID %s" % lid, "verdict": FAIL,
+                             "basis": "依据：config/rules.json → naming",
+                             "detail": "；".join(reasons)})
+
+        vals = lab.get("values")
+        vreasons = []
+        if not isinstance(vals, list) or not vals:
+            vreasons.append("取值枚举为空")
+        else:
+            seen = set()
+            types = set()
+            for v in vals:
+                sk = json.dumps(v, ensure_ascii=False, sort_keys=True)
+                if sk in seen:
+                    vreasons.append("枚举值重复：%s" % sk)
+                seen.add(sk)
+                types.add(type(v).__name__)
+            if len(types) > 1:
+                vreasons.append("枚举值类型混杂：%s" % "/".join(sorted(types)))
+        if vreasons:
+            enum_issues.append({"id": lid, "reasons": vreasons})
+            verdicts.append({"item": "标签取值 %s" % lid, "verdict": FAIL,
+                             "basis": "依据：domain-a-taxonomy-rules.md 第三节",
+                             "detail": "；".join(vreasons)})
+
+    # 2) 跨文件口径取值
+    groups = {}
+    for d in decls:
+        k = normalize_key(d.get("key", ""), aliases)
+        groups.setdefault(k, []).append(d)
+    for key, items in groups.items():
+        by_value = {}
+        for it in items:
+            sk = json.dumps(it.get("value"), ensure_ascii=False, sort_keys=True)
+            by_value.setdefault(sk, []).append(it)
+        if len(by_value) > 1:
+            conflicts.append({
+                "normalized_key": key,
+                "drift_type": drift_types[0],
+                "priority": priority.index(drift_types[0]) if drift_types[0] in priority else 99,
+                "values": [{"value": json.loads(v), "files": [i.get("file", "") for i in its]}
+                           for v, its in by_value.items()],
+            })
+            verdicts.append({
+                "item": "口径键 %s" % key, "verdict": FAIL,
+                "basis": "依据：domain-a-taxonomy-rules.md 第四节（值漂移）",
+                "detail": "同一口径键出现 %d 个不同取值，须回到单一事实源定值" % len(by_value),
+                "drift_type": drift_types[0],
+            })
+
+    # 3) 分域禁用词
+    if not scope:
+        verdicts.append({"item": "属性认定", "verdict": REVIEW,
+                         "basis": "依据：domain-b-label-compliance.md 第一节",
+                         "detail": "未提供 scope，未做分域禁用词检查；须先做产品属性认定"})
+    else:
+        for d in decls:
+            text = " ".join(str(d.get(f, "")) for f in ("key", "value", "text") if d.get(f) is not None)
+            for w in active_words:
+                if w and w in text:
+                    banned_hits.append({"file": d.get("file", ""), "word": w,
+                                       "scope": scope, "context": text[:120]})
+        if banned_hits:
+            verdicts.append({"item": "分域禁用词（%s）" % scope, "verdict": FAIL,
+                             "basis": "依据：config/rules.json → banned_label_words_scope.%s" % scope,
+                             "detail": "命中 %d 处，须逐句核适用范围" % len(banned_hits)})
+        else:
+            verdicts.append({"item": "分域禁用词（%s）" % scope, "verdict": PASS,
+                             "basis": "依据：config/rules.json → banned_label_words_scope.%s" % scope,
+                             "detail": "所选词表未命中；不构成整句合规结论"})
+
+    if not labels and not decls:
+        verdicts.append({"item": "输入", "verdict": REVIEW,
+                         "basis": "依据：SKILL.md 输入表",
+                         "detail": "labels 与 declarations 均为空，无可核查内容"})
+
+    checked_items = len(labels) + len(decls) + len(groups) + 1
+    report = {
+        "meta": {
+            "version": VERSION,
+            "script_ran": True,
+            "scope": scope or "未指定",
+            "total_labels": len(labels),
+            "total_declarations": len(decls),
+            "checked_items": checked_items,
+            "rules_note": "规则来自 config/rules.json；脚本只查结构与一致性，不判定合法合规。",
+        },
+        "summary": {
+            "conflicts": len(conflicts),
+            "naming_violations": len(naming_violations),
+            "enum_issues": len(enum_issues),
+            "banned_hits": len(banned_hits),
+            "pass": sum(1 for v in verdicts if v["verdict"] == PASS),
+            "fail": sum(1 for v in verdicts if v["verdict"] == FAIL),
+            "review": sum(1 for v in verdicts if v["verdict"] == REVIEW),
+        },
+        "conflicts": conflicts,
+        "naming_violations": naming_violations,
+        "enum_issues": enum_issues,
+        "banned_hits": banned_hits,
+        "verdicts": verdicts,
+    }
+    return report
+
+
+def render_markdown(report):
+    m = report["meta"]
+    s = report["summary"]
+    lines = [
+        "【执行声明】脚本：已运行（%d 项）｜未运行（人工逐条）" % m["checked_items"],
+        "",
+        "# 标签口径一致性报告（脚本部分）",
+        "",
+        "- 版本：%s ｜ 属性认定：%s" % (m["version"], m["scope"]),
+        "- 标签 %d 个 ｜ 口径声明 %d 条 ｜ 归一后口径键 %d 组"
+        % (m["total_labels"], m["total_declarations"],
+           len({c["normalized_key"] for c in report["conflicts"]}) + 0),
+        "- 结论：通过 %d ｜ 不通过 %d ｜ 需人工复核 %d" % (s["pass"], s["fail"], s["review"]),
+        "",
+        "> %s" % m["rules_note"],
+        "",
+        "## 逐项结论",
+        "",
+        "| 核查项 | 判定 | 依据 | 说明 |",
+        "|---|---|---|---|",
+    ]
+    for v in report["verdicts"]:
+        lines.append("| %s | `%s` | %s | %s |" %
+                     (v["item"], v["verdict"], v["basis"], v["detail"].replace("|", "\\|")))
+    if report["conflicts"]:
+        lines += ["", "## 口径冲突明细", "", "| 口径键 | 漂移类型 | 取值 | 涉及文件 |", "|---|---|---|---|"]
+        for c in report["conflicts"]:
+            for v in c["values"]:
+                lines.append("| %s | %s | %s | %s |" %
+                             (c["normalized_key"], c["drift_type"],
+                              str(v["value"]).replace("|", "\\|"), ", ".join(v["files"])))
+    if report["banned_hits"]:
+        lines += ["", "## 分域禁用词命中", "", "| 文件 | 词 | 适用域 | 上下文 |", "|---|---|---|---|"]
+        for h in report["banned_hits"]:
+            lines.append("| %s | %s | %s | %s |" %
+                         (h["file"], h["word"], h["scope"], h["context"].replace("|", "\\|")))
+    lines += [
+        "",
+        "## 脚本边界（须如实转述）",
+        "",
+        "- 能做：命名正则、枚举重复性／类型一致性、同口径键取值冲突、分域禁用词命中。",
+        "- 不能做：语义是否等价、整句是否构成违规宣称、法规现行效力、哪个口径是权威。",
+        "- 定性由模型按 `references/` 规则包完成；删改与放行由用户拍板。",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="标签口径一致性校验（只查结构，不判定合规）")
+    ap.add_argument("--input", required=True, help="declarations.json")
+    ap.add_argument("--config", required=True, help="config/rules.json")
+    ap.add_argument("--output-md", default="", help="Markdown 报告路径")
+    ap.add_argument("--output-json", default="", help="JSON 报告路径")
+    args = ap.parse_args()
+
+    try:
+        data = json.loads(Path(args.input).read_text(encoding="utf-8"))
+        config = json.loads(Path(args.config).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write("❌ 输入或配置读取失败，脚本不静默回退：%s\n" % exc)
+        return 2
+
+    if not isinstance(data, dict) or not isinstance(config, dict):
+        sys.stderr.write("❌ 输入与配置都必须是 JSON 对象\n")
+        return 2
+
+    report = analyze(data, config)
+    md = render_markdown(report)
+    if args.output_json:
+        Path(args.output_json).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.output_md:
+        Path(args.output_md).write_text(md, encoding="utf-8")
+    sys.stdout.write(md)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+    sys.exit(main())

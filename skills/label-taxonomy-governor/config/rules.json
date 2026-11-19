@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "note": "规则可配置。项目专有名词请放进 key_aliases，不要写进脚本。分域禁用词按属性认定结果选用，禁止一把梭。",
+  "naming": {
+    "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+    "max_length": 40,
+    "reserved_words": ["misc", "other", "unknown", "temp", "test", "etc", "miscellaneous"]
+  },
+  "hierarchy": {
+    "max_depth": 3
+  },
+  "key_aliases": {
+    "customercount": "customers",
+    "servedenterprises": "customers",
+    "integrity": "integritylevel",
+    "expectedintegrity": "integritylevel"
+  },
+  "banned_label_words_scope": {
+    "化妆品": ["防蚊", "驱蚊", "纯植物", "纯天然", "根除", "速效"],
+    "农药": ["根除", "速效", "铲除", "高产", "增产", "儿童", "孕妇", "过敏者"],
+    "通用": ["国家级", "最高级", "最佳", "第一品牌"]
+  },
+  "verdicts": ["通过", "不通过", "需人工复核"],
+  "drift_types": ["值漂移", "名漂移", "范围漂移", "版本陈旧"],
+  "drift_priority": ["值漂移", "名漂移", "范围漂移", "版本陈旧"]
+}

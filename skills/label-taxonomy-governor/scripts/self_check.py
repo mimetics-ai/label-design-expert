@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""12 条冒烟断言。运行：python self_check.py
+
+断言覆盖：口径键归一化、值漂移检出、命名正则、保留词、长度、枚举重复／类型混杂、
+分域禁用词命中与不误报、三态封闭、执行声明、报告渲染。
+"""
+import json
+import sys
+from pathlib import Path
+
+from check_label_consistency import analyze, normalize_key, render_markdown, VERSION, PASS, FAIL, REVIEW
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+HERE = Path(__file__).resolve().parent
+CONFIG = json.loads((HERE.parent / "config" / "rules.json").read_text(encoding="utf-8"))
+ALIASES = {normalize_key(k, {}): v for k, v in CONFIG["key_aliases"].items()}
+
+BASE = {
+    "scope": "化妆品",
+    "labels": [
+        {"id": "integrity-level", "name": "完整性等级", "values": ["Low", "Medium", "High"]},
+    ],
+    "declarations": [
+        {"file": "gate-manifest.json", "key": "env.expectedIntegrity", "value": "Medium"},
+        {"file": "label-guard.mjs", "key": "EXPECTED_INTEGRITY", "value": "Medium"},
+        {"file": "M2-plan.md", "key": "expectedIntegrity", "value": "Low"},
+    ],
+}
+
+results = []
+
+
+def check(name, cond, extra=""):
+    results.append((name, bool(cond), extra))
+
+
+r = analyze(BASE, CONFIG)
+
+# 1 口径键归一化
+check("01 env.expectedIntegrity 与 EXPECTED_INTEGRITY 归一到同一键",
+      normalize_key("env.expectedIntegrity", ALIASES) == normalize_key("EXPECTED_INTEGRITY", ALIASES))
+
+# 2 值漂移被检出
+check("02 两种取值检出 1 组冲突", len(r["conflicts"]) == 1)
+
+# 3 漂移类型
+check("03 冲突定性为值漂移",
+      bool(r["conflicts"]) and r["conflicts"][0]["drift_type"] == "值漂移")
+
+# 4 定位到漂移文件
+check("04 冲突明细定位到 M2-plan.md",
+      bool(r["conflicts"]) and any(
+          "M2-plan.md" in f
+          for v in r["conflicts"][0]["values"] for f in v["files"]))
+
+# 5 全一致时无冲突
+consistent = dict(BASE)
+consistent["declarations"] = [dict(d, value="Medium") for d in BASE["declarations"]]
+check("05 三处取值一致时 0 冲突", len(analyze(consistent, CONFIG)["conflicts"]) == 0)
+
+# 6 合法 ID 不报命名违规
+check("06 integrity-level 通过命名检查", len(r["naming_violations"]) == 0)
+
+# 7 保留词被拦
+bad_name = {"labels": [{"id": "other-tag", "values": ["a"]}], "declarations": []}
+check("07 other-tag 命中保留词被拦", len(analyze(bad_name, CONFIG)["naming_violations"]) == 1)
+
+# 8 超长 ID 被拦
+long_name = {"labels": [{"id": "a" * 45, "values": ["a"]}], "declarations": []}
+check("08 超长 ID 被拦", len(analyze(long_name, CONFIG)["naming_violations"]) == 1)
+
+# 9 枚举重复被检出
+dup = {"labels": [{"id": "stage", "values": ["a", "a"]}], "declarations": []}
+check("09 枚举重复被检出", len(analyze(dup, CONFIG)["enum_issues"]) == 1)
+
+# 10 类型混杂被检出
+mixed = {"labels": [{"id": "stage", "values": ["Low", 2]}], "declarations": []}
+check("10 枚举类型混杂被检出", len(analyze(mixed, CONFIG)["enum_issues"]) == 1)
+
+# 11 分域禁用词命中
+banned = {"scope": "化妆品", "labels": [],
+          "declarations": [{"file": "label.txt", "key": "copy", "text": "本品可防蚊，纯植物配方"}]}
+rb = analyze(banned, CONFIG)
+check("11 化妆品域命中「防蚊」「纯植物」", len(rb["banned_hits"]) >= 2)
+
+# 12 非适用域的词不误报
+no_false = {"scope": "化妆品", "labels": [],
+            "declarations": [{"file": "label.txt", "key": "copy", "text": "含铲除配方说明"}]}
+check("12 农药域「铲除」不在化妆品词表，不误报",
+      len(analyze(no_false, CONFIG)["banned_hits"]) == 0)
+
+# 附加：三态封闭 + 执行声明（不占 12 条编号）
+all_verdicts = {v["verdict"] for v in r["verdicts"]}
+check("附A 结论只出现三态", all_verdicts <= {PASS, FAIL, REVIEW})
+check("附B 执行声明首行存在", render_markdown(r).startswith("【执行声明】脚本：已运行"))
+check("附C meta.script_ran = True", r["meta"]["script_ran"] is True)
+check("附D 未指定 scope 时标需人工复核",
+      any(v["verdict"] == REVIEW and v["item"] == "属性认定"
+          for v in analyze({"labels": [], "declarations": []}, CONFIG)["verdicts"]))
+
+passed = sum(1 for _, ok, _ in results if ok)
+print("标尺 · 标签治理器自检 v%s" % VERSION)
+print("-" * 46)
+for name, ok, extra in results:
+    print("%s %s%s" % ("✅" if ok else "❌", name, ("｜" + extra) if extra else ""))
+print("-" * 46)
+print("结果：%d/%d 通过" % (passed, len(results)))
+sys.exit(0 if passed == len(results) else 1)
