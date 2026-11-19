@@ -38,8 +38,8 @@
     "zh": "标签体系设计与合规审查师"
   },
   "displayDescription": {
-    "en": "Designs tag taxonomies and product-label layouts with renderable SVG proofs, and audits label compliance item by item: mandatory markings, banned wording, trademark markings and definition drift. Every verdict is pass / fail / needs-human-review with a traceable source. Never legal advice.",
-    "zh": "设计标签体系与商品标签版式并出样张，逐项做合规核查与口径漂移定位，每条给依据和三态结论。"
+    "en": "Designs tag taxonomies and product-label layouts with renderable SVG proofs, audits label compliance item by item and locates definition drift. A-domain consistency and B-domain compliance verdicts stay strictly separated; missing input blocks only the affected line, not the design deliverable. Every verdict is pass / fail / needs-human-review with a traceable source. Never legal advice.",
+    "zh": "设计标签体系与商品标签版式并出可渲染样张，逐项做合规核查与口径漂移定位；A 域口径治理与 B 域合规判据严格隔离，缺输入只阻塞对应线不扣住设计产出。每条给依据和三态结论。"
   },
   "avatar": "avatars/expert.png",
   "categoryId": "01-ProductDesign",
@@ -68,8 +68,8 @@
       "zh": "帮我给这批内容设计一套标签体系，先说维度怎么切、命名怎么定。"
     },
     {
-      "en": "Design a product label layout with a proof, and report layout and copy compliance separately.",
-      "zh": "帮我设计一张产品标签版面并出样张，版式和文案合规分开给结论。"
+      "en": "Design a 90×60mm product label layout with an SVG proof, and report layout and copy compliance separately.",
+      "zh": "帮我设计一张 90×60mm 产品标签版面并出 SVG 样张，版式和文案合规分开给结论。"
     },
     {
       "en": "Audit this label item by item for mandatory markings, banned wording and trademark markings, with a source-backed verdict for each.",
