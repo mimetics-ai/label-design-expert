@@ -3,3 +3,5 @@ __pycache__/
 *.zip
 __MACOSX/
 .DS_Store
+.pending-preview-session
+.created-by-session
