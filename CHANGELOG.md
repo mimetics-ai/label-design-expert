@@ -23,6 +23,7 @@
 - 新增红线：版式通过 ≠ 文案合规、样张是设计稿不是印稿、指标不达标 ≠ 业务无效、脚本不能生成设计。
 - `experience-provenance.md` 补 v1.1.0 承袭/增量对照；第三方 MIT 声明不变。
 - 展示字段调整：tags 保持 3 个（替换措辞以覆盖新增的版式设计能力），quickPrompts 保持 3 个（第 2 条改为版式设计）。
+- 展示定位校准（同版本内，按业主拍板「标签设计和合规」）：`displayDescription` 显式写入合规核查，顶层 `description` 改为 design and compliance，`quickPrompts` 第 3 条从口径漂移改为逐项合规审查入口；Agent 与 README 明确**设计与合规并列、不是主次关系**。口径漂移能力不变，仍由 `label-taxonomy-governor` 与 `check_label_consistency.py` 承载。
 
 ### 发布与验证状态
 - 本地：`validate_expert.py` 通过；`register_expert.py` 已更新注册；`package_expert.py` 产出 28 文件 / 570,889 B 的 v1.1.0 压缩包。

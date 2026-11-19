@@ -1,14 +1,14 @@
 {
   "name": "label-design-expert",
   "version": "1.1.0",
-  "description": "A label design expert that generates orthogonal tag taxonomies with annotation guides, designs product-label layouts with renderable SVG proofs and design tokens, audits mandatory markings and banned wording, and detects definition drift across specs, code and docs, returning source-traceable three-state verdicts.",
+  "description": "A label design and compliance expert that generates orthogonal tag taxonomies with annotation guides, designs product-label layouts with renderable SVG proofs and design tokens, audits mandatory markings, banned wording and trademark markings, detects definition drift across specs, code and docs, and returns source-traceable three-state verdicts.",
   "author": {
     "name": "董植深",
     "email": "jason@mimetics.cn"
   },
   "homepage": "https://github.com/mimetics-ai/label-design-expert",
   "license": "MIT",
-  "keywords": ["label", "taxonomy", "tag-governance", "visual-design", "label-layout", "compliance", "definition-drift"],
+  "keywords": ["label", "taxonomy", "tag-governance", "label-compliance", "visual-design", "label-layout", "definition-drift"],
   "agents": ["./agents/label-design-expert.md"],
   "skills": ["./skills/label-taxonomy-governor", "./skills/label-visual-designer"],
 
@@ -24,8 +24,8 @@
     "zh": "标签体系设计与合规审查师"
   },
   "displayDescription": {
-    "en": "Designs tag taxonomies with annotation guides and product-label layouts with renderable proofs, checks dimension naming, visual hierarchy and definition consistency, audits mandatory markings, and returns a source-backed three-state verdict for every item. Never legal advice.",
-    "zh": "设计数据标签体系与商品标签版式，出可渲染样张，核对口径一致性与强制标注，逐项给依据与三态结论。"
+    "en": "Designs tag taxonomies and product-label layouts with renderable SVG proofs, and audits label compliance item by item: mandatory markings, banned wording, trademark markings and definition drift. Every verdict is pass / fail / needs-human-review with a traceable source. Never legal advice.",
+    "zh": "设计标签体系与商品标签版式并出样张，逐项做合规核查与口径漂移定位，每条给依据和三态结论。"
   },
   "avatar": "avatars/expert.png",
   "categoryId": "01-ProductDesign",
@@ -49,8 +49,8 @@
       "zh": "帮我设计一张产品标签版面并出样张，版式和文案合规分开给结论。"
     },
     {
-      "en": "This label disagrees across the spec, the code and the docs — locate the definition drift.",
-      "zh": "同一个标签在规格表、代码和文档里口径对不上，帮我定位漂移点。"
+      "en": "Audit this label item by item for mandatory markings, banned wording and trademark markings, with a source-backed verdict for each.",
+      "zh": "逐项核查这张标签的强制标注、禁用词和商标标注，每条给依据和三态结论。"
     }
   ]
 }
