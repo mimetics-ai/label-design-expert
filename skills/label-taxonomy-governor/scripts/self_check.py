@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 from check_label_consistency import analyze, normalize_key, render_markdown, VERSION, PASS, FAIL, REVIEW
+from check_taxonomy_coverage import analyze as analyze_coverage
+from check_taxonomy_coverage import render_markdown as render_coverage_markdown
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -100,6 +102,22 @@ check("附C meta.script_ran = True", r["meta"]["script_ran"] is True)
 check("附D 未指定 scope 时标需人工复核",
       any(v["verdict"] == REVIEW and v["item"] == "属性认定"
           for v in analyze({"labels": [], "declarations": []}, CONFIG)["verdicts"]))
+
+# v1.1.0 · 覆盖度与设计能力断言
+EXAMPLE = json.loads((HERE.parent / "examples" / "taxonomy-design-example.json").read_text(encoding="utf-8"))
+rc = analyze_coverage(EXAMPLE, CONFIG)
+check("附E 覆盖率计算正确（11/11 全有标签）", rc["metrics"]["coverage_rate"] == 1.0)
+check("附F 互斥与依赖两类冲突都被检出",
+      {c["type"] for c in rc["relation_conflicts"]} >= {"exclusive", "requires"})
+check("附G 互斥冲突定位到刻意反例 c11",
+      any(c["sample"] == "c11" and c["type"] == "exclusive" for c in rc["relation_conflicts"]))
+orphan = {"labels": [{"id": "d", "values": ["a"]}],
+          "samples": [{"id": "s1", "labels": {"d": "b"}}]}
+check("附H 未登记取值被检出", len(analyze_coverage(orphan, CONFIG)["orphan_values"]) == 1)
+check("附I 覆盖度报告首行有执行声明",
+      render_coverage_markdown(rc).startswith("【执行声明】脚本：已运行"))
+check("附J 覆盖度结论只出现三态",
+      {v["verdict"] for v in rc["verdicts"]} <= {PASS, FAIL, REVIEW})
 
 passed = sum(1 for _, ok, _ in results if ok)
 print("标尺 · 标签治理器自检 v%s" % VERSION)

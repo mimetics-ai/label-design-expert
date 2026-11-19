@@ -1,0 +1,59 @@
+{
+  "note": "演示用占位数据。所有文案均为占位符，不是真实产品信息；本样张是设计稿不是印稿，不得用于印刷或上架。",
+  "label": {
+    "width_mm": 90,
+    "height_mm": 60,
+    "bleed_mm": 3,
+    "safe_mm": 5,
+    "view_distance_mm": 400
+  },
+  "regions": [
+    {
+      "id": "product-name",
+      "type": "product-name",
+      "x": 8, "y": 8, "w": 60, "h": 12,
+      "font_mm": 6.0,
+      "fg": "#1A1A1A", "bg": "#FFFFFF",
+      "text": "［产品名称占位］"
+    },
+    {
+      "id": "brand-trademark",
+      "type": "trademark",
+      "x": 72, "y": 5, "w": 13, "h": 9,
+      "font_mm": 3.2,
+      "fg": "#1A1A1A", "bg": "#FFFFFF",
+      "text": "［商标占位］"
+    },
+    {
+      "id": "claim-block",
+      "type": "claim",
+      "x": 8, "y": 26, "w": 58, "h": 10,
+      "font_mm": 2.4,
+      "fg": "#333333", "bg": "#FFFFFF",
+      "text": "［功效表述占位 · 须另过禁用词核查］"
+    },
+    {
+      "id": "mandatory-block",
+      "type": "mandatory",
+      "x": 8, "y": 40, "w": 58, "h": 14,
+      "font_mm": 2.6,
+      "fg": "#111111", "bg": "#FFFFFF",
+      "text": "［强制标注占位：登记证号 / 生产许可证 / 净含量 / 警示语］"
+    },
+    {
+      "id": "trace-qrcode",
+      "type": "qrcode",
+      "x": 70, "y": 40, "w": 15, "h": 15,
+      "quiet_zone_mm": 3.0,
+      "fg": "#111111", "bg": "#FFFFFF",
+      "text": "［追溯二维码占位］"
+    }
+  ],
+  "print": {
+    "color_mode": "CMYK",
+    "tac_percent": 280,
+    "min_line_mm": 0.25,
+    "black_text_k": 100,
+    "resolution_dpi": 300
+  }
+}

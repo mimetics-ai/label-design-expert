@@ -1,0 +1,47 @@
+{
+  "version": "1.1.0",
+  "note": "默认值为通用起点，不是法规。用户给了印厂规范时以印厂规范为准，并在报告里标注采用了默认值/客户规范。",
+  "units": "mm",
+  "page": {
+    "bleed_mm": 3.0,
+    "safe_mm": 5.0,
+    "grid_columns": 4,
+    "baseline_mm": 4.0
+  },
+  "type": {
+    "min_font_mm": {
+      "mandatory": 2.5,
+      "product-name": 3.0,
+      "brand": 3.0,
+      "claim": 1.8,
+      "body": 1.8,
+      "decor": 1.2
+    },
+    "view_distance_mm": 400,
+    "view_distance_factor": 0.003,
+    "contrast_ratio": {
+      "body": 4.5,
+      "large_text": 3.0
+    },
+    "large_text_font_mm": 4.0,
+    "bilingual_secondary_ratio": 0.7
+  },
+  "trademark": {
+    "max_area_ratio": 0.1111,
+    "corners_only": true,
+    "corner_zone_mm": 20
+  },
+  "codes": {
+    "qr_min_side_mm": 15.0,
+    "qr_quiet_zone_modules": 4,
+    "qr_modules_per_side": 21,
+    "barcode_min_bar_mm": 0.25
+  },
+  "print": {
+    "max_tac_percent": 300,
+    "min_line_mm": 0.2,
+    "black_text_k": 100,
+    "min_resolution_dpi": 300
+  },
+  "hierarchy": ["mandatory", "product-name", "brand", "claim", "decor"]
+}

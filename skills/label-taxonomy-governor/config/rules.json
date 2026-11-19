@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "note": "规则可配置。项目专有名词请放进 key_aliases，不要写进脚本。分域禁用词按属性认定结果选用，禁止一把梭。",
   "naming": {
     "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
@@ -8,6 +8,13 @@
   },
   "hierarchy": {
     "max_depth": 3
+  },
+  "coverage": {
+    "min_coverage": 0.95,
+    "min_dimension_usage": 0.20,
+    "max_long_tail_ratio": 0.30,
+    "max_single_tag_rate": 0.20,
+    "min_value_hits": 2
   },
   "key_aliases": {
     "customercount": "customers",

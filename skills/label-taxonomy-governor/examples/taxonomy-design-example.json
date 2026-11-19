@@ -1,0 +1,49 @@
+{
+  "version": "1.1.0",
+  "note": "示例：内容库标签体系（新建，非真实业务数据）。用于演示 D-Q-D-V、关系矩阵与覆盖度计算。c11 是刻意设置的反例，用于演示互斥值冲突检出。",
+  "decisions": [
+    {"id": "d1", "decision": "首页要不要推这篇", "question": "内容深度够不够", "dimension": "content-depth"},
+    {"id": "d2", "decision": "分到哪个渠道", "question": "载体形式是什么", "dimension": "content-format"},
+    {"id": "d3", "decision": "能不能对外发", "question": "举证状态如何", "dimension": "evidence-state"}
+  ],
+  "labels": [
+    {
+      "id": "content-depth",
+      "name": "内容深度",
+      "values": ["intro", "advanced", "expert"],
+      "status": "active",
+      "source": "label-spec-v1.md"
+    },
+    {
+      "id": "content-format",
+      "name": "载体形式",
+      "values": ["article", "video", "infographic"],
+      "status": "active",
+      "source": "label-spec-v1.md"
+    },
+    {
+      "id": "evidence-state",
+      "name": "举证状态",
+      "values": ["sourced", "needs-proof", "cut"],
+      "status": "active",
+      "source": "label-spec-v1.md"
+    }
+  ],
+  "relations": [
+    {"type": "exclusive", "a": "evidence-state:sourced", "b": "evidence-state:cut"},
+    {"type": "requires", "a": "evidence-state:sourced", "b": "content-format:article"}
+  ],
+  "samples": [
+    {"id": "c01", "labels": {"content-depth": "intro", "content-format": "article", "evidence-state": "sourced"}},
+    {"id": "c02", "labels": {"content-depth": "advanced", "content-format": "article", "evidence-state": "needs-proof"}},
+    {"id": "c03", "labels": {"content-depth": "expert", "content-format": "video", "evidence-state": "cut"}},
+    {"id": "c04", "labels": {"content-depth": "intro", "content-format": "video", "evidence-state": "needs-proof"}},
+    {"id": "c05", "labels": {"content-depth": "advanced", "content-format": "infographic", "evidence-state": "sourced"}},
+    {"id": "c06", "labels": {"content-depth": "expert", "content-format": "article", "evidence-state": "sourced"}},
+    {"id": "c07", "labels": {"content-depth": "intro", "content-format": "article", "evidence-state": "needs-proof"}},
+    {"id": "c08", "labels": {"content-depth": "advanced"}},
+    {"id": "c09", "labels": {"content-depth": "expert", "content-format": "video", "evidence-state": "cut"}},
+    {"id": "c10", "labels": {"content-format": "article", "evidence-state": "sourced"}},
+    {"id": "c11", "labels": {"content-depth": "advanced", "content-format": "article", "evidence-state": ["sourced", "cut"]}}
+  ]
+}
