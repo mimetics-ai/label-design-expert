@@ -132,8 +132,14 @@ check("21 占位区块标需人工复核且不计为已具备",
 check("22 新增结论仍封闭三态",
       {v["verdict"] for v in analyze(d_noqr, CONFIG)["verdicts"]} <= {PASS, FAIL, REVIEW})
 
+# ---- v1.2.1 · 印刷数值项三态判据统一（50 用例 × 50 轮验收用例 #34 实测发现） ----
+check("23 K 值越界判不通过、未提供判需人工复核",
+      has_fail(variant(lambda d: d["print"].update(black_text_k=80)), "K 值")
+      and any(v["verdict"] == REVIEW and "K 值" in v["item"]
+              for v in variant(lambda d: d["print"].pop("black_text_k", None))["verdicts"]))
+
 passed = sum(1 for _, ok, _ in results if ok)
-print("标尺 · 标签视觉设计器自检 v1.2.0")
+print("标尺 · 标签视觉设计器自检 v1.2.1")
 print("-" * 50)
 for name, ok, extra in results:
     print("%s %s%s" % ("✅" if ok else "❌", name, ("｜" + extra) if extra else ""))

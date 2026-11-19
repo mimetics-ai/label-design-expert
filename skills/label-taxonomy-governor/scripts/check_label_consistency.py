@@ -22,7 +22,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 DEFAULT_DRIFTS = ["值漂移", "名漂移", "范围漂移", "版本陈旧"]
 

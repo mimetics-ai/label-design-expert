@@ -21,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 FORBIDDEN_LINE_HEAD = "。，、；：！？）】》」』”’%‰℃"
 FORBIDDEN_LINE_TAIL = "（【《「『“‘"

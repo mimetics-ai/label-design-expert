@@ -63,7 +63,7 @@ agent_created: true
 
 ## 自检
 
-用户说「跑自检／测试一下」时，运行 `scripts/self_check.py` 并原样贴出输出（**22 条冒烟断言**）。
+用户说「跑自检／测试一下」时，运行 `scripts/self_check.py` 并原样贴出输出（**23 条冒烟断言**）。
 
 ## 处理步骤
 

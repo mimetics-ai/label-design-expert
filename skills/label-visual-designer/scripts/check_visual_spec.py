@@ -21,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 PASS, FAIL, REVIEW = "通过", "不通过", "需人工复核"
 
 # 中文排版禁则：行首不得出现收束标点，行尾不得出现开启标点/引号。
@@ -188,8 +188,11 @@ def analyze(data, config):
         "%smm（下限 %gmm）" % (line, min_line) if line is not None else "未提供，需印厂确认",
         "依据：印前预检规则")
     k = pr.get("black_text_k")
-    add("黑色文字 K 值", PASS if k == print_rules.get("black_text_k", 100) else REVIEW,
-        "%s（要求 %s%% K，需印厂确认）" % (k, print_rules.get("black_text_k", 100)),
+    need_k = print_rules.get("black_text_k", 100)
+    # v1.2.1：数值明确越界判「不通过」，与 TAC/线宽/dpi 一致；未提供才判「需人工复核」。
+    # 「需印厂确认」由独立的「印厂规范」复核项承载，不在数值判据里重复。
+    add("黑色文字 K 值", (PASS if k == need_k else FAIL) if k is not None else REVIEW,
+        "%s（要求 %s%% K）" % (k, need_k) if k is not None else "未提供，需印厂确认",
         "依据：印前预检规则")
     dpi = pr.get("resolution_dpi")
     add("图像分辨率", (PASS if float(dpi) >= float(print_rules.get("min_resolution_dpi", 300)) else FAIL)
